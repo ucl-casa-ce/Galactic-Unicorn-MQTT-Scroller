@@ -31,10 +31,11 @@ from time import sleep
 PADDING = 2
 MESSAGE_COLOUR = (255, 255, 255)
 OUTLINE_COLOUR = (0, 0, 0)
-BACKGROUND_COLOUR = (10, 0, 96)
-MESSAGE = "\"Space is big. Really big. You just won't believe how vastly hugely mind-bogglingly big it is. I mean, you may think it's a long way down the road to the chemist, but that's just peanuts to space.\" - Douglas Adams"
+MESSAGE = ""
+#BACKGROUND_COLOUR = (10, 0, 96)
+BACKGROUND_COLOUR = (255, 255, 0)
 HOLD_TIME = 2.0
-STEP_TIME = 0.075
+STEP_TIME = 0.065 #Edit to slow down/speed up text
 
 # create galactic object and graphics surface for drawing
 gu = GalacticUnicorn()
