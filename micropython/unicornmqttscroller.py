@@ -32,10 +32,10 @@ PADDING = 2
 MESSAGE_COLOUR = (255, 255, 255)
 OUTLINE_COLOUR = (0, 0, 0)
 MESSAGE = ""
-#BACKGROUND_COLOUR = (10, 0, 96)
-BACKGROUND_COLOUR = (255, 255, 0)
+#BACKGROUND_COLOUR = (10, 0, 96) # Blue
+BACKGROUND_COLOUR = (255, 255, 0) # Yellow
 HOLD_TIME = 2.0
-STEP_TIME = 0.065 #Edit to slow down/speed up text
+STEP_TIME = 0.045 #Edit to slow down/speed up text - lower for faster scrolling
 
 # create galactic object and graphics surface for drawing
 gu = GalacticUnicorn()
@@ -68,7 +68,7 @@ def sub_cb(topic, msg, retained):
     
         
     # state constants
-    brightness = 0.1
+    brightness = 0.5
     gu.set_brightness(brightness)
     STATE_PRE_SCROLL = 0
     STATE_SCROLLING = 1
