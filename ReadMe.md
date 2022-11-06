@@ -11,4 +11,8 @@ Copy all the files to your Galactic Unicon using Thonny - edit config.py to add 
 
 Edit the unicornmqttscroller.py file for your own MQTTT to subscribe, background colour, scroll speed etc.
 
+In addition, we have provided a 3D printed case front case for the Unicon - split into two sections for printing on standard print beds.
+
+![Screen](https://connected-environments.org/wp-content/uploads/2022/11/IMG_1469-scaled.jpg)
+
 Created as part of work at the Connected Environments Group at the Centre for Advanced Spatial Analysis, University College London.
