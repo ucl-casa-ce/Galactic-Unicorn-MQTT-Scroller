@@ -1,4 +1,4 @@
-# MQTT Scroller for the Pimoroni Galactic Unicon with Pi Pico W
+# MQTT Scroller for the Pimoroni Galactic Unicon with Pi Pico W and 3D Printed Case
 MQTT Scroller for the Pimoroni Galactic Unicon with Pi Pico W
 
 An edited version of the Pimoroni Text Scroll to connect to Wifi and subscribe to an MQTT feed. This enables messages to be scrolled via any MQTT broker. 
