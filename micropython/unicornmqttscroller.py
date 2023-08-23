@@ -12,8 +12,7 @@
 # blue LED heartbeat: demonstrates scheduler is running.
 
 
-
-#Import libraries - config.py sets up wifi and mqtt
+# Import libraries - config.py sets up wifi and mqtt
 import time
 from galactic import GalacticUnicorn
 from picographics import PicoGraphics, DISPLAY_GALACTIC_UNICORN as DISPLAY
@@ -25,6 +24,7 @@ import uasyncio as asyncio
 import machine
 from machine import Pin, PWM
 from time import sleep
+import _thread
 
 
 # constants for controlling scrolling text
@@ -32,10 +32,10 @@ PADDING = 2
 MESSAGE_COLOUR = (255, 255, 255)
 OUTLINE_COLOUR = (0, 0, 0)
 MESSAGE = ""
-#BACKGROUND_COLOUR = (10, 0, 96) # Blue
-BACKGROUND_COLOUR = (255, 255, 0) # Yellow
+# BACKGROUND_COLOUR = (10, 0, 96) # Blue
+BACKGROUND_COLOUR = (120, 120, 0)  # Yellow
 HOLD_TIME = 2.0
-STEP_TIME = 0.045 #Edit to slow down/speed up text - lower for faster scrolling
+STEP_TIME = 0.045  # Edit to slow down/speed up text - lower for faster scrolling
 
 # create galactic object and graphics surface for drawing
 gu = GalacticUnicorn()
@@ -60,13 +60,16 @@ msg_width = graphics.measure_text(MESSAGE, 1)
 
 last_time = time.ticks_ms()
 
+cancel_thread = False
+thread_running = False
+
 
 # MQTT Message Subscription and Display
 
+
 def sub_cb(topic, msg, retained):
     print(f'Topic: "{topic.decode()}" Message: "{msg.decode()}" Retained: {retained}')
-    
-        
+
     # state constants
     brightness = 0.5
     gu.set_brightness(brightness)
@@ -76,8 +79,13 @@ def sub_cb(topic, msg, retained):
 
     shift = 0
     state = STATE_PRE_SCROLL
+
     def outline_text(text, x, y):
-        graphics.set_pen(graphics.create_pen(int(OUTLINE_COLOUR[0]), int(OUTLINE_COLOUR[1]), int(OUTLINE_COLOUR[2])))
+        graphics.set_pen(
+            graphics.create_pen(
+                int(OUTLINE_COLOUR[0]), int(OUTLINE_COLOUR[1]), int(OUTLINE_COLOUR[2])
+            )
+        )
         graphics.text(text, x - 1, y - 1, -1, 1)
         graphics.text(text, x, y - 1, -1, 1)
         graphics.text(text, x + 1, y - 1, -1, 1)
@@ -87,21 +95,28 @@ def sub_cb(topic, msg, retained):
         graphics.text(text, x, y + 1, -1, 1)
         graphics.text(text, x + 1, y + 1, -1, 1)
 
-        graphics.set_pen(graphics.create_pen(int(MESSAGE_COLOUR[0]), int(MESSAGE_COLOUR[1]), int(MESSAGE_COLOUR[2])))
+        graphics.set_pen(
+            graphics.create_pen(
+                int(MESSAGE_COLOUR[0]), int(MESSAGE_COLOUR[1]), int(MESSAGE_COLOUR[2])
+            )
+        )
         graphics.text(text, x, y, -1, 1)
-    
-    DATA = (msg.decode('utf-8'))
+
+    DATA = msg.decode("utf-8")
     MESSAGE = str("                " + DATA + "             ")
-    
-# calculate the message width so scrolling can happen
+
+    # calculate the message width so scrolling can happen
     msg_width = graphics.measure_text(MESSAGE, 1)
 
     last_time = time.ticks_ms()
-       
 
-    print (MESSAGE)
-    
+    print(MESSAGE)
+
     while True:
+
+        if cancel_thread:
+            return
+
         time_ms = time.ticks_ms()
 
         if gu.is_pressed(GalacticUnicorn.SWITCH_BRIGHTNESS_UP):
@@ -118,21 +133,24 @@ def sub_cb(topic, msg, retained):
         if state == STATE_SCROLLING and time_ms - last_time > STEP_TIME * 1000:
             shift += 1
             if shift >= (msg_width + PADDING * 2) - width - 1:
-                state = STATE_POST_SCROLL
-                brightness = 0
-                gu.set_brightness(brightness)
-                gu.update(graphics)
-                break
+                state = STATE_PRE_SCROLL
+                state = STATE_PRE_SCROLL
+                shift = 0
+                last_time = time_ms
             last_time = time_ms
-           
 
         if state == STATE_POST_SCROLL and time_ms - last_time > HOLD_TIME * 1000:
             state = STATE_PRE_SCROLL
             shift = 0
             last_time = time_ms
-            
 
-        graphics.set_pen(graphics.create_pen(int(BACKGROUND_COLOUR[0]), int(BACKGROUND_COLOUR[1]), int(BACKGROUND_COLOUR[2])))
+        graphics.set_pen(
+            graphics.create_pen(
+                int(BACKGROUND_COLOUR[0]),
+                int(BACKGROUND_COLOUR[1]),
+                int(BACKGROUND_COLOUR[2]),
+            )
+        )
         graphics.clear()
 
         outline_text(MESSAGE, x=PADDING - shift, y=2)
@@ -141,10 +159,9 @@ def sub_cb(topic, msg, retained):
         gu.update(graphics)
 
         # pause for a moment (important or the USB serial device will fail)
-        time.sleep(0.001)
-    
-    
-    
+        sleep(0.001)
+
+
 # Demonstrate scheduler is operational.
 async def heartbeat():
     s = True
@@ -153,49 +170,54 @@ async def heartbeat():
         blue_led(s)
         s = not s
 
-async def wifi_han(state):
-    wifi_led(not state)
-    print('Wifi is ', 'up' if state else 'down')
-   # sweep()
-    await asyncio.sleep(1)
+async def wifi_up(up):
+    await up.wait()
+    print("Wifi is up")
+    await client.subscribe("personal/ucfnaps/led/#", 1)
 
-# If you connect with clean_session True, must re-subscribe (MQTT spec 3.1.2.4)
-async def conn_han(client):
-    
-# MQTT Subscirbe Topic   
-    await client.subscribe('personal/ucfnaps/led/#', 1)
 
 async def main(client):
     try:
+        asyncio.create_task(wifi_up(client.up))
         await client.connect()
     except OSError:
-        print('Connection failed.')
-        machine.reset()
-        return
-    n = 0
+        print("Connection failed.")
+        # machine.reset()
+        raise
+
+    task = None
     while True:
-        await asyncio.sleep(5)
-       # print('publish', n)
-        # If WiFi is down the following will pause for the duration.
-        #await client.publish('result', '{} {}'.format(n, client.REPUB_COUNT), qos = 1)
-        n += 1
+        async for msg in client.queue:
+            global thread_running
+            global cancel_thread
+            if not thread_running:
+                _thread.start_new_thread(sub_cb, (msg[0], msg[1], msg[2]))
+                thread_running = True
+            else:
+                cancel_thread = True
+                sleep(1)
+                _thread.start_new_thread(sub_cb, (msg[0], msg[1], msg[2]))
+                cancel_thread = False
+            await asyncio.sleep(1)
+
 
 # Define configuration
-config['subs_cb'] = sub_cb
-config['wifi_coro'] = wifi_han
-config['connect_coro'] = conn_han
-config['clean'] = True
+config["queue_len"] = 10
+config["clean"] = True
 
 # Set up client
 MQTTClient.DEBUG = True  # Optional
 client = MQTTClient(config)
+
+print("Starting")
 
 asyncio.create_task(heartbeat())
 
 
 try:
     asyncio.run(main(client))
-    
+except Exception as e:
+    print(e)
 
 finally:
     client.close()  # Prevent LmacRxBlk:1 errors
